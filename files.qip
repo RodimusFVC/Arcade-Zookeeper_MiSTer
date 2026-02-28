@@ -19,6 +19,5 @@ set_global_assignment -name VERILOG_FILE rtl/cpu/MC6809/mc6809i.v
 
 set_global_assignment -name VHDL_FILE rtl/cpu/m6802.vhd
 set_global_assignment -name VHDL_FILE rtl/cpu/mc6845.vhd
-set_global_assignment -name VHDL_FILE rtl/cpu/mc68705.vhd
 
 set_global_assignment -name VHDL_FILE rtl/custom/pia6821.vhd
