@@ -1,0 +1,14 @@
+set_global_assignment -name VHDL_INPUT_VERSION VHDL_2008
+
+set_global_assignment -name SYSTEMVERILOG_FILE Arcade-Tutankham.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/Tutankham.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/Tutankham_CPU.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/TimePilot_SND.sv
+set_global_assignment -name VHDL_FILE rtl/mc_stars.vhd
+set_global_assignment -name VERILOG_FILE rtl/pause.v
+set_global_assignment -name VERILOG_FILE rtl/hiscore.v
+set_global_assignment -name VERILOG_FILE rtl/jtframe_frac_cen.v
+set_global_assignment -name QIP_FILE rtl/cpu/tut_cpu.qip
+set_global_assignment -name QIP_FILE rtl/custom/tut_custom.qip
+set_global_assignment -name QIP_FILE rtl/sound/tp_sound.qip
+set_global_assignment -name QIP_FILE rtl/ram_rom/tut_ram_rom.qip

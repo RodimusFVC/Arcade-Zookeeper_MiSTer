@@ -1,0 +1,6 @@
+set_global_assignment -name QIP_FILE rtl/sound/jt49/hdl/jt49.qip
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/sound/Filters/tp_lpf_light.v
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/sound/Filters/tp_lpf_medium.v
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/sound/Filters/tp_lpf_heavy.v
+set_global_assignment -name VERILOG_FILE rtl/sound/Filters/audio_iir_filter.v
+set_global_assignment -name VERILOG_FILE rtl/sound/jt49/hdl/filter/jt49_dcrm2.v
