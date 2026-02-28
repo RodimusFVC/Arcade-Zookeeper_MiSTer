@@ -43,11 +43,10 @@ module Qix_CPU (
     input         snd_irq_from_snd,// CA1 ← sound CPU interrupt
     output        flip_screen,    // CB2 → cocktail flip
 
-    // ROM loading (MiSTer ioctl)
+    // ROM loading (MiSTer ioctl — pre-gated by address range in Qix.sv)
     input  [24:0] ioctl_addr,
     input  [7:0]  ioctl_data,
     input         ioctl_wr,
-    input  [7:0]  ioctl_index,
 
     input         pause
 );
@@ -82,7 +81,7 @@ wire sndpia_cs      = (cpu_A[15:10] == 6'b10_0100);   // $9000-$93FF
 wire pia0_cs        = (cpu_A[15:10] == 6'b10_0101);   // $9400-$97FF
 wire pia1_cs        = (cpu_A[15:10] == 6'b10_0110);   // $9800-$9BFF
 wire pia2_cs        = (cpu_A[15:10] == 6'b10_0111);   // $9C00-$9FFF
-wire rom_cs         =  cpu_A[15] & (cpu_A[14] | cpu_A[13]); // $A000-$FFFF
+wire rom_cs         = (cpu_A[15:14] == 2'b11);               // $C000-$FFFF
 
 // PIA chip-select: single-cycle pulse at E-fall so the synchronous PIA
 // fires exactly once per bus cycle regardless of E-cycle width.
@@ -308,23 +307,20 @@ pia6821 pia2 (
 );
 
 // ---------------------------------------------------------------------------
-// Data CPU ROM — 24KB ($A000-$FFFF), stored in 32KB BRAM
+// Data CPU ROM — 16KB ($C000-$FFFF) in 16KB BRAM
 //
-// ioctl_index == DATA_ROM_IDX selects this ROM image.
-// ioctl_addr[0] → ROM[0] → CPU address $A000.
-// CPU read: cpu_A[14:0] - 15'h2000  ($A000→0 .. $FFFF→$5FFF)
-// Upper 8KB of 32KB array ($6000-$7FFF) is unused.
+// Loaded at ioctl_addr $00000-$03FFF (gated by Qix.sv).
+// CPU read address: cpu_A[13:0]  ($C000→0 .. $FFFF→$3FFF)
+// ioctl write address: ioctl_addr[13:0] (0-based, base $00000)
 // ---------------------------------------------------------------------------
-localparam DATA_ROM_IDX = 8'd0;
-
-reg [7:0] data_rom [0:32767];
+reg [7:0] data_rom [0:16383];
 reg [7:0] rom_dout;
 
-wire [14:0] rom_cpu_addr   = cpu_A[14:0] - 15'h2000;
-wire [14:0] rom_ioctl_addr = ioctl_addr[14:0];
+wire [13:0] rom_cpu_addr   = cpu_A[13:0];
+wire [13:0] rom_ioctl_addr = ioctl_addr[13:0];
 
 always @(posedge clk_20m) begin
-    if (ioctl_wr && ioctl_index == DATA_ROM_IDX)
+    if (ioctl_wr)
         data_rom[rom_ioctl_addr] <= ioctl_data;
     rom_dout <= data_rom[rom_cpu_addr];
 end

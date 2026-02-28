@@ -44,11 +44,10 @@ module Qix_Video (
     output [7:0]  video_b,
     output        crtc_vsync,
 
-    // ROM loader (MiSTer ioctl)
+    // ROM loader (MiSTer ioctl — pre-gated by address range in Qix.sv)
     input  [24:0] ioctl_addr,
     input  [7:0]  ioctl_data,
     input         ioctl_wr,
-    input  [7:0]  ioctl_index,
 
     // Hiscore / NVRAM interface (hs_address driven by hiscore module)
     input  [15:0] hs_address,
@@ -109,7 +108,7 @@ wire latch_hi_cs     = (cpu_A        == 16'h9402);                 // $9402
 wire latch_lo_cs     = (cpu_A        == 16'h9403);                 // $9403
 wire scanline_cs     = (cpu_A[15:10] == 6'b10_0110);              // $9800 (partial)
 wire crtc_bus_cs     = (cpu_A[15:2]  == 14'h2700);                // $9C00-$9C01
-wire rom_cs          =  cpu_A[15] & (cpu_A[14] | cpu_A[13]);      // $A000-$FFFF
+wire rom_cs          = (cpu_A[15:14] == 2'b11);                    // $C000-$FFFF
 
 // ---------------------------------------------------------------------------
 // Shared RAM outputs (port B wired to dual-port RAM in Qix.sv)
@@ -284,24 +283,20 @@ end
 assign hs_data_out = nvram_hs_dout;
 
 // ---------------------------------------------------------------------------
-// Video ROM — 24KB ($A000-$FFFF), stored in 32KB BRAM
+// Video ROM — 16KB ($C000-$FFFF) in 16KB BRAM
 //
-// ioctl_index == VIDEO_ROM_IDX selects the video ROM image.
-// Mapping: ioctl_addr[0] → ROM[0] → CPU address $A000
-//   CPU read address  = cpu_A[14:0] - 15'h2000  ($A000→0 .. $FFFF→$5FFF)
-//   ioctl write address = ioctl_addr[14:0]       (byte 0 → index 0)
-// The upper 8KB of the 32KB array ($6000-$7FFF) is unused.
+// Loaded at ioctl_addr $04000-$07FFF (gated by Qix.sv).
+// CPU read address: cpu_A[13:0]  ($C000→0 .. $FFFF→$3FFF)
+// ioctl write address: ioctl_addr[13:0] (bits [13:0] of $04000-$07FFF = 0-$3FFF)
 // ---------------------------------------------------------------------------
-localparam VIDEO_ROM_IDX = 8'd1;
-
-reg [7:0] vid_rom [0:32767];
+reg [7:0] vid_rom [0:16383];
 reg [7:0] rom_dout;
 
-wire [14:0] rom_cpu_addr   = cpu_A[14:0] - 15'h2000;
-wire [14:0] rom_ioctl_addr = ioctl_addr[14:0] - 15'h6000;
+wire [13:0] rom_cpu_addr   = cpu_A[13:0];
+wire [13:0] rom_ioctl_addr = ioctl_addr[13:0];
 
 always @(posedge clk_20m) begin
-    if (ioctl_wr && ioctl_index == VIDEO_ROM_IDX)
+    if (ioctl_wr)
         vid_rom[rom_ioctl_addr] <= ioctl_data;
     rom_dout <= vid_rom[rom_cpu_addr];
 end

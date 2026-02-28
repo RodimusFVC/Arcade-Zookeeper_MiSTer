@@ -10,7 +10,7 @@
 //   - 1KB shared dual-port RAM (port A = data CPU, port B = video CPU)
 //   - FIRQ cross-signal routing between CPUs
 //   - Sound PIA signal routing between data CPU and audio board
-//   - ROM ioctl fan-out (each subsystem filters on its own ioctl_index)
+//   - ROM ioctl address-range dispatch to each subsystem
 //   - PIA input assembly
 //
 //============================================================================
@@ -98,6 +98,16 @@ always @(posedge clk_20m)
 assign vid_sh_dout = shared_ram[vid_sh_addr];
 
 // ---------------------------------------------------------------------------
+// ROM ioctl address-range dispatch (concatenated ROM, all ioctl_index == 0)
+//   $00000-$03FFF : Data CPU ROM  (16KB)
+//   $04000-$07FFF : Video CPU ROM (16KB)
+//   $08000-$087FF : Audio CPU ROM  (2KB)
+// ---------------------------------------------------------------------------
+wire cpu_ioctl_wr = ioctl_wr & (ioctl_addr < 25'h04000);
+wire vid_ioctl_wr = ioctl_wr & (ioctl_addr >= 25'h04000) & (ioctl_addr < 25'h08000);
+wire snd_ioctl_wr = ioctl_wr & (ioctl_addr >= 25'h08000) & (ioctl_addr < 25'h08800);
+
+// ---------------------------------------------------------------------------
 // FIRQ cross-signals
 //
 // Latches are inside each CPU board; top-level inverts one-cycle pulses.
@@ -168,8 +178,7 @@ Qix_CPU cpu_board (
 
     .ioctl_addr      (ioctl_addr),
     .ioctl_data      (ioctl_data),
-    .ioctl_wr        (ioctl_wr),
-    .ioctl_index     (ioctl_index),
+    .ioctl_wr        (cpu_ioctl_wr),
 
     .pause           (pause)
 );
@@ -203,8 +212,7 @@ Qix_Video video_board (
 
     .ioctl_addr      (ioctl_addr),
     .ioctl_data      (ioctl_data),
-    .ioctl_wr        (ioctl_wr),
-    .ioctl_index     (ioctl_index),
+    .ioctl_wr        (vid_ioctl_wr),
 
     .hs_address      (hs_address),
     .hs_data_out     (hs_data_out),
@@ -234,8 +242,7 @@ Qix_Sound sound_board (
 
     .ioctl_addr       (ioctl_addr),
     .ioctl_data       (ioctl_data),
-    .ioctl_wr         (ioctl_wr),
-    .ioctl_index      (ioctl_index),
+    .ioctl_wr         (snd_ioctl_wr),
 
     .pause            (pause)
 );

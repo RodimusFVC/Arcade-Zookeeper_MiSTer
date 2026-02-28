@@ -1,0 +1,63 @@
+<misterromdescription>
+    <name>Qix (set 2)</name>
+    <setname>qixb</setname>
+    <rbf>Arcade-Qix</rbf>
+    <mameversion>0268</mameversion>
+    <year>1981</year>
+    <manufacturer>Taito America Corporation</manufacturer>
+    <players>2</players>
+    <joystick>4-Way</joystick>
+    <rotation>vertical (ccw)</rotation>
+    <region>World</region>
+    <category>Maze</category>
+
+    <switches default="FF,FF" base="16">
+        <!-- DIP Switch 1 -->
+        <dip name="Attract Sound" bits="0" ids="Off,On"/>
+        <dip name="Demo Mode" bits="1" ids="Off,On"/>
+        <dip name="Kicker" bits="2" ids="Off,On"/>
+        <dip name="Coins A" bits="3,4" ids="1/1,2/1,1/2,Free Play"/>
+        <dip name="Coins B" bits="5,6" ids="1/1,2/1,1/2,Free Play"/>
+        <dip name="Service Mode" bits="7" ids="Off,On"/>
+        <!-- DIP Switch 2 -->
+        <dip name="Lives" bits="8,9" ids="3,4,5,6"/>
+        <dip name="Bonus Life" bits="10,11" ids="8000,10000,12000,None"/>
+        <dip name="Difficulty" bits="12,13" ids="Normal,Easy,Hard,Hardest"/>
+    </switches>
+
+    <buttons names="Draw Fast,Coin,Start 1P,Start 2P,Pause" default="A,Select,Start,R,L"/>
+
+    <!--
+        ROM LOADING ORDER (directly maps to ioctl_addr):
+        $00000-$03FFF : maincpu  (16KB at $C000-$FFFF)
+        $04000-$07FFF : videocpu (16KB at $C000-$FFFF)
+        $08000-$087FF : audiocpu (2KB at $F800-$FFFF)
+
+        Total: 34KB ($8800 bytes)
+    -->
+
+    <rom index="0" zip="qix.zip|qixb.zip" md5="none" type="merged">
+        <!-- Data CPU ROMs: 4x 4KB, loaded at $C000-$FFFF -->
+        <!-- ioctl_addr $00000-$03FFF -->
+        <part name="lk14.bin" crc="6d164986"/>
+        <part name="lk15.bin" crc="16c6ce0f"/>
+        <part name="lk16.bin" crc="698b1f9c"/>
+        <part name="lk17.bin" crc="7e3adde6"/>
+
+        <!-- Video CPU ROMs: 4x 4KB, loaded at $C000-$FFFF -->
+        <!-- ioctl_addr $04000-$07FFF -->
+        <part name="lk10.bin" crc="7eac67d0"/>
+        <part name="lk11.bin" crc="90ccbb6a"/>
+        <part name="lk12.bin" crc="be9b9f7d"/>
+        <part name="lk13.bin" crc="51c9853b"/>
+
+        <!-- Audio CPU ROM: 1x 2KB, loaded at $F800-$FFFF -->
+        <!-- ioctl_addr $08000-$087FF -->
+        <part name="qq27.u27" crc="f3782bd0"/>
+    </rom>
+
+    <!-- DIP switches accent accent accent accent accent accent accent accent accent accent accent accent accent accent accent accent accent accent accent (accent accent accent accent accent accent accent accent accent accent accent accent accent accent accent accent accent accent accent accent accent accent accent accent accent accent accent accent accent loaded via ioctl index 254) -->
+    <rom index="254" zip="" md5="none">
+        <part>FF FF</part>
+    </rom>
+</misterromdescription>

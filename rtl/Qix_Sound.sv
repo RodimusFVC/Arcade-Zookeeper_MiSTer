@@ -31,11 +31,10 @@ module Qix_Sound (
     output signed [15:0] audio_l,
     output signed [15:0] audio_r,
 
-    // ROM loading (MiSTer ioctl)
+    // ROM loading (MiSTer ioctl — pre-gated by address range in Qix.sv)
     input  [24:0] ioctl_addr,
     input  [7:0]  ioctl_data,
     input         ioctl_wr,
-    input  [7:0]  ioctl_index,
 
     input         pause
 );
@@ -70,8 +69,7 @@ wire cpu_hold = ~cen_snd | pause;   // hold=0 for 1 cycle per 22 (or all when pa
 // ---------------------------------------------------------------------------
 wire sndpia2_cs_addr = snd_vma & (snd_A[15:13] == 3'b001);   // $2000-$3FFF
 wire sndpia1_cs_addr = snd_vma & (snd_A[15:14] == 2'b01);    // $4000-$7FFF
-wire rom_cs          = snd_vma & snd_A[15] & snd_A[14] &
-                       (snd_A[13] | snd_A[12]);                // $D000-$FFFF
+wire rom_cs          = snd_vma & (snd_A[15:11] == 5'b11111);  // $F800-$FFFF
 
 // Single-cycle PIA enables: fire only during the active CPU tick
 wire sndpia2_en = cen_snd & sndpia2_cs_addr;
@@ -182,23 +180,20 @@ pia6821 sndpia2 (
 assign snd_irq = sndpia1_irqa | sndpia1_irqb | sndpia2_irqa | sndpia2_irqb;
 
 // ---------------------------------------------------------------------------
-// Audio ROM — 12KB ($D000-$FFFF) in 16KB BRAM (14-bit address)
+// Audio ROM — 2KB ($F800-$FFFF) in 2KB BRAM
 //
-// ioctl_index == SOUND_ROM_IDX loads the audio ROM image.
-// ioctl_addr[0] → ROM[0] → CPU address $D000.
-// CPU read address: snd_A[13:0] - 14'h1000  ($D000→0 .. $FFFF→$2FFF)
-// Upper 4KB of 16KB array ($3000-$3FFF) is unused.
+// Loaded at ioctl_addr $08000-$087FF (gated by Qix.sv).
+// CPU read address: snd_A[10:0]  ($F800→0 .. $FFFF→$7FF)
+// ioctl write address: ioctl_addr[10:0] (bits [10:0] of $08000-$087FF = 0-$7FF)
 // ---------------------------------------------------------------------------
-localparam SOUND_ROM_IDX = 8'd2;
-
-reg [7:0] snd_rom [0:16383];
+reg [7:0] snd_rom [0:2047];
 reg [7:0] rom_dout;
 
-wire [13:0] rom_cpu_addr   = snd_A[13:0] - 14'h1000;
-wire [13:0] rom_ioctl_addr = ioctl_addr[13:0];
+wire [10:0] rom_cpu_addr   = snd_A[10:0];
+wire [10:0] rom_ioctl_addr = ioctl_addr[10:0];
 
 always @(posedge clk_20m) begin
-    if (ioctl_wr && ioctl_index == SOUND_ROM_IDX)
+    if (ioctl_wr)
         snd_rom[rom_ioctl_addr] <= ioctl_data;
     rom_dout <= snd_rom[rom_cpu_addr];
 end
