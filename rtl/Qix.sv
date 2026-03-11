@@ -28,7 +28,10 @@ module Qix (
     input         p2_fire,
     
     input         service,        // Test Advance button (active-low)
-    
+    input         service2,
+    input         service3,
+    input         service4,
+
     input  [15:0] dip_sw,
 
     // Video output
@@ -108,9 +111,9 @@ dpram_dc #(.widthad_a(10)) shared_ram_inst (
 //   $04000-$07FFF : Video CPU ROM (16KB)
 //   $08000-$087FF : Audio CPU ROM  (2KB)
 // ---------------------------------------------------------------------------
-wire cpu_ioctl_wr = ioctl_wr & (ioctl_addr < 25'h04000);
-wire vid_ioctl_wr = ioctl_wr & (ioctl_addr >= 25'h04000) & (ioctl_addr < 25'h08000);
-wire snd_ioctl_wr = ioctl_wr & (ioctl_addr >= 25'h08000) & (ioctl_addr < 25'h08800);
+wire cpu_ioctl_wr = ioctl_wr & (ioctl_addr < 25'h06000);                             // 24KB
+wire vid_ioctl_wr = ioctl_wr & (ioctl_addr >= 25'h06000) & (ioctl_addr < 25'h0C000); // 24KB
+wire snd_ioctl_wr = ioctl_wr & (ioctl_addr >= 25'h0C000) & (ioctl_addr < 25'h0F000); // 12KB
 
 // ---------------------------------------------------------------------------
 // FIRQ cross-signals
@@ -137,7 +140,7 @@ always @(posedge clk_20m) begin
         vsync_enable <= 1'b0;
     end else if (!vsync_enable) begin
         vsync_delay <= vsync_delay + 24'd1;
-        if (vsync_delay == 24'd10_000_000)  // ~0.5 sec
+        if (vsync_delay == 24'd16_777_215)  // ~0.5 sec
             vsync_enable <= 1'b1;
     end
 end
@@ -161,13 +164,13 @@ wire        flip;             // Qix_CPU sndPIA0 CB2 → Qix_Video flip
 // ---------------------------------------------------------------------------
 // PIA input assembly (all signals active-low from wrapper)
 //
-// PIA0 port A (P1): [7]=fire [6]=start1 [5]=start2 [4]=1 [3:0]={R,L,D,U}
-// PIA0 port B (COIN): [7]=tilt [6]=coin2 [5]=coin1 [4]=service [3:0]=1
-// PIA2 port A (P2): [7]=fire [6:4]=1 [3:0]={R,L,D,U}
+// PIA0 port A (P1): [7]=button1 [6]=start1 [5]=start2 [4]=button2 [3:0]={L,D,R,U}
+// PIA0 port B (COIN): [7]=tilt [6]=coin3 [5]=coin2 [4]=coin1 [3:0]={svc4,svc3,svc2,svc1}
+// PIA2 port A (P2): [7]=button1 [6:4]=1 [3:0]={L,D,R,U}
 // ---------------------------------------------------------------------------
 wire [7:0] p1_pia   = {1'b1, start_buttons[0], start_buttons[1], p1_fire,
                         p1_joystick[2], p1_joystick[1], p1_joystick[3], p1_joystick[0]};
-wire [7:0] coin_pia = {1'b1, coin[1], coin[0], 1'b1, 3'b111, service};
+wire [7:0] coin_pia = {1'b1, 1'b1, coin[1], coin[0], service4, service3, service2, service};
 wire [7:0] p2_pia   = {1'b1, 3'b111,
                         p2_joystick[2], p2_joystick[1], p2_joystick[3], p2_joystick[0]};
 

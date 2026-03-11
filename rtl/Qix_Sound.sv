@@ -70,7 +70,7 @@ wire snd_hold    = ~snd_cen;     // hold CPU except during active tick
 // ---------------------------------------------------------------------------
 wire sndpia2_cs_addr = (snd_A[15:13] == 3'b001);   // $2000-$3FFF
 wire sndpia1_cs_addr = (snd_A[15:14] == 2'b01);    // $4000-$7FFF
-wire rom_cs          = (snd_A[15:11] == 5'b11111);  // $F800-$FFFF
+wire rom_cs          = (snd_A >= 16'hD000);        // $D000-$FFFF (12KB)
 
 // PIA enables: active during valid bus cycles at the active CPU tick
 // cpu68 drives vma=1 when the bus cycle is real (not idle/dead cycle)
@@ -199,17 +199,16 @@ pia6821 sndpia2 (
 assign snd_irq = sndpia1_irqa | sndpia1_irqb | sndpia2_irqa | sndpia2_irqb;
 
 // ---------------------------------------------------------------------------
-// Audio ROM — 2KB ($F800-$FFFF) in 2KB BRAM
-//
-// Loaded at ioctl_addr $08000-$087FF (gated by Qix.sv).
-// CPU read address: snd_A[10:0]  ($F800→0 .. $FFFF→$7FF)
-// ioctl write address: ioctl_addr[10:0] (bits [10:0] of $08000-$087FF = 0-$7FF)
+// Audio ROM — 12KB ($D000-$FFFF) in 12KB BRAM
+// Loaded at ioctl_addr $0C000-$0EFFF (gated by Qix.sv).
+// CPU read address: snd_A[13:0] - $1000  ($D000→0 .. $FFFF→$2FFF)
+// ioctl write address: ioctl_addr[13:0] (bits [13:0] of $0C000-$0EFFF = 0-$2FFF)
 // ---------------------------------------------------------------------------
-reg [7:0] snd_rom [0:2047];
+reg [7:0] snd_rom [0:12287];                          // 12KB
 reg [7:0] rom_dout;
 
-wire [10:0] rom_cpu_addr   = snd_A[10:0];
-wire [10:0] rom_ioctl_addr = ioctl_addr[10:0];
+wire [13:0] rom_cpu_addr   = snd_A[13:0] - 14'h1000;  // $D000→0
+wire [13:0] rom_ioctl_addr = ioctl_addr[13:0];
 
 always @(posedge clk_20m) begin
     if (ioctl_wr)

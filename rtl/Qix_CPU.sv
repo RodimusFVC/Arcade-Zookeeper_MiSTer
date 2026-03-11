@@ -77,13 +77,13 @@ wire shared_cs      = (cpu_A[15:10] == 6'b10_0000);   // $8000-$83FF
 wire local_cs       = (cpu_A[15:10] == 6'b10_0001);   // $8400-$87FF
 wire acia_cs        = (cpu_A[15:10] == 6'b10_0010);   // $8800-$8BFF (open-bus)
 wire firq_range     = (cpu_A[15:10] == 6'b10_0011);   // $8C00-$8FFF
-wire firq_assert_cs = firq_range & ~cpu_A[0];          // even addr: assert video FIRQ
-wire firq_ack_cs    = firq_range &  cpu_A[0];          // odd  addr: ack data FIRQ
+wire firq_assert_cs = firq_range & ~cpu_A[0];         // even addr: assert video FIRQ
+wire firq_ack_cs    = firq_range &  cpu_A[0];         // odd  addr: ack data FIRQ
 wire sndpia_cs      = (cpu_A[15:10] == 6'b10_0100);   // $9000-$93FF
 wire pia0_cs        = (cpu_A[15:10] == 6'b10_0101);   // $9400-$97FF
 wire pia1_cs        = (cpu_A[15:10] == 6'b10_0110);   // $9800-$9BFF
 wire pia2_cs        = (cpu_A[15:10] == 6'b10_0111);   // $9C00-$9FFF
-wire rom_cs         = (cpu_A[15:14] == 2'b11);               // $C000-$FFFF
+wire rom_cs         = (cpu_A >= 16'hA000);            // $C000-$FFFF
 
 // PIA chip-select: single-cycle pulse at E-fall so the synchronous PIA
 // fires exactly once per bus cycle regardless of E-cycle width.
@@ -178,23 +178,6 @@ wire       sndpia_ca2_o, sndpia_ca2_oe;
 wire       sndpia_cb2_o, sndpia_cb2_oe;
 wire       sndpia_irqa, sndpia_irqb;
 
-// VSYNC-driven IRQ — bypass sndPIA0 CB1 (PIA mixed-edge synthesis issue)
-reg vsync_prev;
-reg vsync_irq;
-always @(posedge clk_20m) begin
-    if (reset) begin
-        vsync_prev <= 1'b0;
-        vsync_irq  <= 1'b0;
-    end else begin
-        vsync_prev <= crtc_vsync;
-        if (~vsync_prev & crtc_vsync)          // rising edge of vsync
-            vsync_irq <= 1'b1;
-        else if (cpu_E_fall & sndpia_cs & cpu_RnW & (cpu_A[1:0] == 2'b10))
-            vsync_irq <= 1'b0;                 // cleared on READ of sndPIA0 port B
-    end
-end
-
-
 pia6821 sndpia0 (
     .clk      (clk_20m),
     .rst      (reset),
@@ -215,7 +198,7 @@ pia6821 sndpia0 (
     .pb_i     (8'h00),
     .pb_o     (sndpia_pb_o),
     .pb_oe    (sndpia_pb_oe),
-    .cb1      (1'b0),           // .cb1      (crtc_vsync),
+    .cb1      (crtc_vsync),  // (1'b0),
     .cb2_i    (1'b1),
     .cb2_o    (sndpia_cb2_o),
     .cb2_oe   (sndpia_cb2_oe)
@@ -227,7 +210,7 @@ assign snd_irq_to_snd = sndpia_ca2_o;
 assign flip_screen    = sndpia_cb2_o;
 
 // IRQ to data CPU: active-low merge of sndPIA0 IRQA and IRQB
-//assign n_irq = ~(sndpia_irqa | sndpia_irqb | vsync_irq);    // Not Working - Black Screen
+// assign n_irq = ~(sndpia_irqa | sndpia_irqb | vsync_irq);    // Not Working - Black Screen
 assign n_irq = ~(sndpia_irqa | sndpia_irqb);
 
 // ---------------------------------------------------------------------------
@@ -333,11 +316,11 @@ pia6821 pia2 (
 // CPU read address: cpu_A[13:0]  ($C000→0 .. $FFFF→$3FFF)
 // ioctl write address: ioctl_addr[13:0] (0-based, base $00000)
 // ---------------------------------------------------------------------------
-reg [7:0] data_rom [0:16383];
+reg [7:0] data_rom [0:24575];                        // 24KB
 reg [7:0] rom_dout;
 
-wire [13:0] rom_cpu_addr   = cpu_A[13:0];
-wire [13:0] rom_ioctl_addr = ioctl_addr[13:0];
+wire [14:0] rom_cpu_addr   = cpu_A[14:0] - 15'h2000; // $A000→0, $FFFF→$5FFF
+wire [14:0] rom_ioctl_addr = ioctl_addr[14:0];
 
 always @(posedge clk_20m) begin
     if (ioctl_wr)

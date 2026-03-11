@@ -284,17 +284,21 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 );
 
 ////////////////////   CLOCKS   ///////////////////
-
-wire CLK_20M;
+wire CLK_40M;
 wire locked;
 
 pll pll
 (
 	.refclk(CLK_50M),
 	.rst(0),
-	.outclk_0(CLK_20M),
+	.outclk_0(CLK_40M),
 	.locked(locked)
 );
+
+reg CLK_20M = 0;
+always @(posedge CLK_40M) CLK_20M <= ~CLK_20M;
+
+assign CLK_VIDEO = CLK_40M;   // HDMI needs the 40 MHz reference
 
 wire reset = RESET | status[0] | buttons[1] | ioctl_download;
 
@@ -305,12 +309,16 @@ reg btn_down     = 0;
 reg btn_left     = 0;
 reg btn_right    = 0;
 reg btn_fire     = 0;
+reg btn_fire2    = 0;
 reg btn_coin1    = 0;
 reg btn_coin2    = 0;
 reg btn_1p_start = 0;
 reg btn_2p_start = 0;
 reg btn_pause    = 0;
 reg btn_service  = 0;
+reg btn_service2 = 0;
+reg btn_service3 = 0;
+reg btn_service4 = 0;
 
 wire pressed = ps2_key[9];
 wire [7:0] code = ps2_key[7:0];
@@ -325,12 +333,16 @@ always @(posedge CLK_20M) begin
 			'h36: btn_coin2    <= pressed; // 6
 			'h4D: btn_pause    <= pressed; // P
 			'h46: btn_service  <= pressed; // 9
+			'h45: btn_service2 <= pressed; // 0 = Test Next Line
+			'h44: btn_service3 <= pressed; // O = Test Slew Up  
+			'h4B: btn_service4 <= pressed; // L = Test Slew Down
 
 			'h75: btn_up       <= pressed; // up
 			'h72: btn_down     <= pressed; // down
 			'h6B: btn_left     <= pressed; // left
 			'h74: btn_right    <= pressed; // right
 			'h14: btn_fire     <= pressed; // ctrl
+			'h12: btn_fire2    <= pressed; // left shift (draw fast / button2)
 		endcase 
 	end
 end
@@ -343,11 +355,15 @@ wire m_down1   = btn_down  | joystick_0[2];
 wire m_left1   = btn_left  | joystick_0[1];
 wire m_right1  = btn_right | joystick_0[0];
 wire m_fire1   = btn_fire  | joystick_0[4];
+wire m_fire2_p1 = btn_fire2 | joystick_0[5]; // second button for P1 draw fast
 wire m_coin1   = btn_coin1 | joystick_0[5];
 wire m_start1  = btn_1p_start | joystick_0[6];
 wire m_start2  = btn_2p_start | joystick_0[7];
 wire m_pause   = btn_pause | joystick_0[8];
 wire m_service = btn_service;
+wire m_service2 = btn_service2;
+wire m_service3 = btn_service3;
+wire m_service4 = btn_service4;
 
 wire m_up2     = joystick_1[3];
 wire m_down2   = joystick_1[2];
@@ -391,7 +407,7 @@ arcade_video #(256,24) arcade_video
 (
 	.*,
 
-	.clk_video(CLK_20M),
+	.clk_video(CLK_40M),
 
 	.RGB_in(rgb_out),
 	.HBlank(hblank),
@@ -417,6 +433,9 @@ Qix QIX_inst
 	.p2_fire(~m_fire2),
 	
 	.service(~m_service),
+	.service2(~m_service2),
+	.service3(~m_service3),
+	.service4(~m_service4),
 	
 	.dip_sw({~dip_sw[1], ~dip_sw[0]}),
 

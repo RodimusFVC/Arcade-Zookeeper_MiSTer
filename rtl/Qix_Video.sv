@@ -114,7 +114,7 @@ wire latch_lo_cs     = vs5_cs & (cpu_A[1:0] == 2'b11);             // xx11: addr
 wire scanline_cs     = (cpu_A[15:10] == 6'b10_0110);               // $9800 (partial)
 wire crtc_range      = (cpu_A[15:10] == 6'b10_0111);               // $9C00-$9FFF (VS7)
 wire crtc_bus_cs     = crtc_range;                                 // active for full range
-wire rom_cs          = (cpu_A[15:14] == 2'b11);                    // $C000-$FFFF
+wire rom_cs          = (cpu_A >= 16'hA000);                        // $C000-$FFFF
 
 // ---------------------------------------------------------------------------
 // Shared RAM outputs (port B wired to dual-port RAM in Qix.sv)
@@ -294,11 +294,11 @@ assign hs_data_out = nvram_hs_dout;
 // CPU read address: cpu_A[13:0]  ($C000→0 .. $FFFF→$3FFF)
 // ioctl write address: ioctl_addr[13:0] (bits [13:0] of $04000-$07FFF = 0-$3FFF)
 // ---------------------------------------------------------------------------
-reg [7:0] vid_rom [0:16383];
+reg [7:0] vid_rom [0:24575];                         // 24KB
 reg [7:0] rom_dout;
 
-wire [13:0] rom_cpu_addr   = cpu_A[13:0];
-wire [13:0] rom_ioctl_addr = ioctl_addr[13:0];
+wire [14:0] rom_cpu_addr   = cpu_A[14:0] - 15'h2000; // $A000→0
+wire [14:0] rom_ioctl_addr = ioctl_addr[14:0] - 15'h6000;
 
 always @(posedge clk_20m) begin
     if (ioctl_wr)

@@ -120,7 +120,7 @@ begin
 --
 --------------------------------
 
-pia_read : process(	addr,	cs,
+pia_read : process(	addr,	cs,   rw, 
                     irqa1, irqa2, irqb1, irqb2,
                     porta_ddr,  portb_ddr,
 										porta_data, portb_data,
@@ -150,21 +150,20 @@ begin
 			 porta_read <= '0';
 			 portb_read <= '0';
 
-		  when "10" =>
-		    for count in 0 to 7 loop
-			   if portb_ctrl(2) = '0' then
-				  data_out(count) <= portb_ddr(count);
-				  portb_read <= '0';
+        when "10" =>
+          for count in 0 to 7 loop
+             if portb_ctrl(2) = '0' then
+                data_out(count) <= portb_ddr(count);
             else
-				  if portb_ddr(count) = '1' then
-                data_out(count) <= portb_data(count);
-              else
-                data_out(count) <= pb_i(count);
-				  end if;
-				  portb_read <= cs;
+                if portb_ddr(count) = '1' then
+                  data_out(count) <= portb_data(count);
+                else
+                  data_out(count) <= pb_i(count);
+                end if;
             end if;
-			 end loop;
-			 porta_read <= '0';
+           end loop;
+           portb_read <= cs and rw;
+           porta_read <= '0';
 
 		  when "11" =>
 		    data_out <= irqb1 & irqb2 & portb_ctrl;
