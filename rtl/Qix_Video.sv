@@ -137,11 +137,22 @@ always @(posedge clk_20m) begin
 end
 assign data_firq = data_firq_r;
 
+//reg video_firq_flag;
+//always @(posedge clk_20m) begin
+//    if (reset)                     video_firq_flag <= 1'b0;
+//    else if (firq_ack_cs & cpu_E_fall) video_firq_flag <= 1'b0;
+//    else if (~video_firq_n)        video_firq_flag <= 1'b1;
+//end
+
+//grok test
 reg video_firq_flag;
 always @(posedge clk_20m) begin
-    if (reset)                     video_firq_flag <= 1'b0;
-    else if (firq_ack_cs & cpu_E_fall) video_firq_flag <= 1'b0;
-    else if (~video_firq_n)        video_firq_flag <= 1'b1;
+    if (reset)
+        video_firq_flag <= 1'b0;
+    else if (firq_ack_cs & cpu_E_fall)      // ack on odd address read
+        video_firq_flag <= 1'b0;
+    else if (~video_firq_n)                 // data CPU is asserting
+        video_firq_flag <= 1'b1;
 end
 
 // ---------------------------------------------------------------------------

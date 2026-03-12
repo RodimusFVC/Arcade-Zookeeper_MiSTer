@@ -116,12 +116,21 @@ wire n_firq = ~firq_latch;             // active-low FIRQ input to 6809E
 // ---------------------------------------------------------------------------
 // video_firq: one-cycle pulse on any bus access to $8C00 (even addr in range)
 // ---------------------------------------------------------------------------
+//reg video_firq_r;
+//always @(posedge clk_20m) begin
+//    if (reset) video_firq_r <= 1'b0;
+//    else       video_firq_r <= cpu_E_fall & firq_assert_cs;
+//end
+//assign video_firq = video_firq_r;
+
 reg video_firq_r;
+
 always @(posedge clk_20m) begin
-    if (reset) video_firq_r <= 1'b0;
-    else       video_firq_r <= cpu_E_fall & firq_assert_cs;
+    if (reset)
+        video_firq_r <= 0;
+    else if (cpu_E_fall & firq_assert_cs)
+        video_firq_r <= 1;
 end
-assign video_firq = video_firq_r;
 
 // ---------------------------------------------------------------------------
 // 6809E Data CPU
@@ -210,7 +219,6 @@ assign snd_irq_to_snd = sndpia_ca2_o;
 assign flip_screen    = sndpia_cb2_o;
 
 // IRQ to data CPU: active-low merge of sndPIA0 IRQA and IRQB
-// assign n_irq = ~(sndpia_irqa | sndpia_irqb | vsync_irq);    // Not Working - Black Screen
 assign n_irq = ~(sndpia_irqa | sndpia_irqb);
 
 // ---------------------------------------------------------------------------
@@ -310,10 +318,10 @@ pia6821 pia2 (
 );
 
 // ---------------------------------------------------------------------------
-// Data CPU ROM — 16KB ($C000-$FFFF) in 16KB BRAM
+// Data CPU ROM — 16KB ($A000-$FFFF) in 24KB BRAM
 //
-// Loaded at ioctl_addr $00000-$03FFF (gated by Qix.sv).
-// CPU read address: cpu_A[13:0]  ($C000→0 .. $FFFF→$3FFF)
+// Loaded at ioctl_addr $00000-$05FFF (gated by Qix.sv).
+// CPU read address: cpu_A[13:0]  ($A000→0 .. $FFFF→$5FFF)
 // ioctl write address: ioctl_addr[13:0] (0-based, base $00000)
 // ---------------------------------------------------------------------------
 reg [7:0] data_rom [0:24575];                        // 24KB
