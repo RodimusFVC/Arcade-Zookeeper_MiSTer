@@ -31,6 +31,7 @@ module Qix_Video (
 
     // Cross-CPU FIRQ
     output        data_firq,    // pulse: video CPU asserts FIRQ on data CPU
+    output        video_firq_ack,
     input         video_firq_n, // from data CPU → drives video 6809E nFIRQ
 
     // Video outputs
@@ -74,7 +75,7 @@ mc6809e video_cpu (
     .E      (E),
     .Q      (Q),
     .nIRQ   (1'b1),
-    .nFIRQ  (~video_firq_flag),  // use internal SR latch, not raw pulse input
+    .nFIRQ  (video_firq_n),  // use internal SR latch, not raw pulse input
     .nNMI   (1'b1),
     .BS     (),
     .BA     (),
@@ -114,7 +115,7 @@ wire latch_lo_cs     = vs5_cs & (cpu_A[1:0] == 2'b11);             // xx11: addr
 wire scanline_cs     = (cpu_A[15:10] == 6'b10_0110);               // $9800 (partial)
 wire crtc_range      = (cpu_A[15:10] == 6'b10_0111);               // $9C00-$9FFF (VS7)
 wire crtc_bus_cs     = crtc_range;                                 // active for full range
-wire rom_cs          = (cpu_A >= 16'hA000);                        // $C000-$FFFF
+wire rom_cs          = (cpu_A >= 16'hA000);                        // $A000-$FFFF (24KB)
 
 // ---------------------------------------------------------------------------
 // Shared RAM outputs (port B wired to dual-port RAM in Qix.sv)
@@ -123,37 +124,27 @@ assign shared_addr = cpu_A[9:0];
 assign shared_dout = cpu_Dout;
 assign shared_we   = shared_cs & cpu_wr;
 
+/// ---------------------------------------------------------------------------
+// FIRQ access pulses (from schematic Figure 13, U7/U8):
+//   $8C00 (even): assert FIRQ on data CPU
+//   $8C01 (odd):  ack video CPU's own FIRQ
+// One 20MHz cycle pulse at E-fall. SR latches live in Qix.sv.
 // ---------------------------------------------------------------------------
-// Cross-CPU FIRQ logic
-//
-// data_firq    : one-cycle pulse on $8C00 write; data CPU latches it
-// video_firq_n : from data CPU, drives 6809E nFIRQ directly (see inst above)
-// video_firq_flag : latches video_firq_n assertion; cleared by $8C01 write
-// ---------------------------------------------------------------------------
-reg data_firq_r;
-always @(posedge clk_20m) begin
-    if (reset) data_firq_r <= 1'b0;
-    else       data_firq_r <= firq_assert_cs & cpu_wr;
-end
-assign data_firq = data_firq_r;
+reg firq_assert_pulse;
+reg firq_ack_pulse;
 
-//reg video_firq_flag;
-//always @(posedge clk_20m) begin
-//    if (reset)                     video_firq_flag <= 1'b0;
-//    else if (firq_ack_cs & cpu_E_fall) video_firq_flag <= 1'b0;
-//    else if (~video_firq_n)        video_firq_flag <= 1'b1;
-//end
-
-//grok test
-reg video_firq_flag;
 always @(posedge clk_20m) begin
-    if (reset)
-        video_firq_flag <= 1'b0;
-    else if (firq_ack_cs & cpu_E_fall)      // ack on odd address read
-        video_firq_flag <= 1'b0;
-    else if (~video_firq_n)                 // data CPU is asserting
-        video_firq_flag <= 1'b1;
+    if (reset) begin
+        firq_assert_pulse <= 1'b0;
+        firq_ack_pulse    <= 1'b0;
+    end else begin
+        firq_assert_pulse <= firq_assert_cs & cpu_E_fall;
+        firq_ack_pulse    <= firq_ack_cs & cpu_E_fall;
+    end
 end
+
+assign data_firq     = firq_assert_pulse;
+assign video_firq_ack = firq_ack_pulse;
 
 // ---------------------------------------------------------------------------
 // VRAM address latch registers (written at $9402/$9403)

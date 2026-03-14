@@ -25,7 +25,7 @@
         <dip name="Difficulty" bits="12,13" ids="Normal,Easy,Hard,Hardest"/>
     </switches>
 
-    <buttons names="Draw Fast,Coin,Start 1P,Start 2P,Pause" default="A,Select,Start,R,L"/>
+    <buttons names="Draw Slow,Draw Fast,Coin,Start 1P,Start 2P,Pause" default="A,B,Select,Start,R,L"/>
 
     <!--
         ROM LOADING ORDER (directly maps to ioctl_addr):

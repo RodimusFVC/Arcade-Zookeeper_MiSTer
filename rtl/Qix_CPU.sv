@@ -27,6 +27,7 @@ module Qix_CPU (
 
     // FIRQ cross-signals
     output        video_firq,     // assert FIRQ on video CPU (active-high pulse)
+    output        data_firq_ack,
     input         data_firq_n,    // FIRQ input from video CPU (active-low)
 
     // Player inputs (active-low, from wrapper)
@@ -83,7 +84,7 @@ wire sndpia_cs      = (cpu_A[15:10] == 6'b10_0100);   // $9000-$93FF
 wire pia0_cs        = (cpu_A[15:10] == 6'b10_0101);   // $9400-$97FF
 wire pia1_cs        = (cpu_A[15:10] == 6'b10_0110);   // $9800-$9BFF
 wire pia2_cs        = (cpu_A[15:10] == 6'b10_0111);   // $9C00-$9FFF
-wire rom_cs         = (cpu_A >= 16'hA000);            // $C000-$FFFF
+wire rom_cs         = (cpu_A >= 16'hA000);            // $A000-$FFFF (24KB)
 
 // PIA chip-select: single-cycle pulse at E-fall so the synchronous PIA
 // fires exactly once per bus cycle regardless of E-cycle width.
@@ -93,44 +94,26 @@ wire pia1_en   = cpu_E_fall & pia1_cs;
 wire pia2_en   = cpu_E_fall & pia2_cs;
 
 // ---------------------------------------------------------------------------
-// FIRQ latch (data CPU side)
-//   SET  : falling edge of data_firq_n (video CPU asserts)
-//   CLEAR: any E-qualified bus access to odd address in $8C00-$8FFF ($8C01)
+// FIRQ access pulses (from schematic Figure 13, U7/U8):
+//   $8C00 (even): assert FIRQ on video CPU
+//   $8C01 (odd):  ack data CPU's own FIRQ
+// One 20MHz cycle pulse at E-fall. SR latches live in Qix.sv.
 // ---------------------------------------------------------------------------
-reg firq_latch;
-reg data_firq_n_prev;
+reg firq_assert_pulse;
+reg firq_ack_pulse;
 
 always @(posedge clk_20m) begin
-    data_firq_n_prev <= data_firq_n;
     if (reset) begin
-        firq_latch <= 1'b0;
-    end else if (cpu_E_fall & firq_ack_cs) begin
-        firq_latch <= 1'b0;             // CPU acks its own FIRQ
-    end else if (~data_firq_n & data_firq_n_prev) begin
-        firq_latch <= 1'b1;             // video CPU fired FIRQ (falling edge)
+        firq_assert_pulse <= 1'b0;
+        firq_ack_pulse    <= 1'b0;
+    end else begin
+        firq_assert_pulse <= cpu_E_fall & firq_assert_cs;
+        firq_ack_pulse    <= cpu_E_fall & firq_ack_cs;
     end
 end
 
-wire n_firq = ~firq_latch;             // active-low FIRQ input to 6809E
-
-// ---------------------------------------------------------------------------
-// video_firq: one-cycle pulse on any bus access to $8C00 (even addr in range)
-// ---------------------------------------------------------------------------
-//reg video_firq_r;
-//always @(posedge clk_20m) begin
-//    if (reset) video_firq_r <= 1'b0;
-//    else       video_firq_r <= cpu_E_fall & firq_assert_cs;
-//end
-//assign video_firq = video_firq_r;
-
-reg video_firq_r;
-
-always @(posedge clk_20m) begin
-    if (reset)
-        video_firq_r <= 0;
-    else if (cpu_E_fall & firq_assert_cs)
-        video_firq_r <= 1;
-end
+assign video_firq   = firq_assert_pulse;
+assign data_firq_ack = firq_ack_pulse;
 
 // ---------------------------------------------------------------------------
 // 6809E Data CPU
@@ -143,7 +126,7 @@ mc6809e data_cpu (
     .E      (E),
     .Q      (Q),
     .nIRQ   (n_irq),
-    .nFIRQ  (n_firq),
+    .nFIRQ  (data_firq_n),
     .nNMI   (1'b1),
     .BS     (),
     .BA     (),

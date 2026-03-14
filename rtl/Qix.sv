@@ -118,22 +118,37 @@ wire vid_ioctl_wr = ioctl_wr & (ioctl_addr >= 25'h06000) & (ioctl_addr < 25'h0C0
 wire snd_ioctl_wr = ioctl_wr & (ioctl_addr >= 25'h0C000) & (ioctl_addr < 25'h0F000); // 12KB
 
 // ---------------------------------------------------------------------------
-// FIRQ cross-signals
+// FIRQ cross-signals (from schematic Figure 13, U7 7474 dual flip-flop)
 //
-// Latches are inside each CPU board; top-level inverts one-cycle pulses.
-//   cpu_video_firq : data CPU asserts FIRQ on video CPU (active-high pulse)
-//   vid_data_firq  : video CPU asserts FIRQ on data CPU (active-high pulse)
-//
-// Qix_CPU uses falling-edge detect on data_firq_n → 1-cycle low pulse works.
-// Qix_Video uses level-check on video_firq_n  → 1-cycle low pulse works
-//   because the internal video_firq_flag latches the assertion.
+// Two SR latches using async PRE/CLR:
+//   data_firq_latch:  SET by video CPU $8C00, CLEAR by data CPU $8C01
+//   video_firq_latch: SET by data CPU $8C00, CLEAR by video CPU $8C01
 // ---------------------------------------------------------------------------
-wire cpu_video_firq;   // from Qix_CPU
-wire vid_data_firq;    // from Qix_Video
+wire cpu_firq_assert;    // data CPU accessed $8C00 (pulse)
+wire cpu_firq_ack;       // data CPU accessed $8C01 (pulse)
+wire vid_firq_assert;    // video CPU accessed $8C00 (pulse)
+wire vid_firq_ack;       // video CPU accessed $8C01 (pulse)
+
+reg data_firq_latch;
+reg video_firq_latch;
+
+always @(posedge clk_20m) begin
+    if (reset) begin
+        data_firq_latch  <= 1'b0;
+        video_firq_latch <= 1'b0;
+    end else begin
+        if (cpu_firq_ack)         data_firq_latch <= 1'b0;
+        else if (vid_firq_assert) data_firq_latch <= 1'b1;
+
+        if (vid_firq_ack)           video_firq_latch <= 1'b0;
+        else if (cpu_firq_assert)   video_firq_latch <= 1'b1;
+    end
+end
+
+wire data_firq_n  = ~data_firq_latch;
+wire video_firq_n = ~video_firq_latch;
 
 // Delay VSYNC to Data CPU until CRTC is programmed.
-// Hold CB1 low for ~0.5 sec after reset (10M clocks at 20MHz)
-// to let the Video CPU program CRTC registers.
 reg [23:0] vsync_delay;
 reg        vsync_enable;
 always @(posedge clk_20m) begin
@@ -142,7 +157,8 @@ always @(posedge clk_20m) begin
         vsync_enable <= 1'b0;
     end else if (!vsync_enable) begin
         vsync_delay <= vsync_delay + 24'd1;
-        if (vsync_delay == 24'd16_777_215)  // ~0.5 sec
+        if (vsync_delay == 24'd16_777_215)  // ~0.84 sec
+//        if (vsync_delay == 24'd1_000_000)     // ~0.05 sec
             vsync_enable <= 1'b1;
     end
 end
@@ -150,8 +166,8 @@ end
 wire crtc_vsync_out;
 wire crtc_vsync_gated = vsync_enable ? crtc_vsync_out : 1'b0;
 
-wire data_firq_n  = ~vid_data_firq;    // active-low to Qix_CPU
-wire video_firq_n = ~cpu_video_firq;   // active-low to Qix_Video
+// wire crtc_vsync_out;
+// wire crtc_vsync_gated = crtc_vsync_out;
 
 // ---------------------------------------------------------------------------
 // Sound PIA signal routing
@@ -192,7 +208,8 @@ Qix_CPU cpu_board (
     .shared_dout     (cpu_sh_dout),
     .shared_we       (cpu_sh_we),
 
-    .video_firq      (cpu_video_firq),
+    .video_firq      (cpu_firq_assert),
+    .data_firq_ack   (cpu_firq_ack),
     .data_firq_n     (data_firq_n),
 
     .p1_input        (p1_pia),
@@ -230,7 +247,8 @@ Qix_Video video_board (
     .shared_din      (vid_sh_dout),   // shared RAM port B read → video CPU
     .shared_we       (vid_sh_we),
 
-    .data_firq       (vid_data_firq),
+    .data_firq       (vid_firq_assert),
+    .video_firq_ack  (vid_firq_ack),
     .video_firq_n    (video_firq_n),
 
     .hsync           (video_hsync),
