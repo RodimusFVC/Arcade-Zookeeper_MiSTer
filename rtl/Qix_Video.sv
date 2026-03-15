@@ -152,20 +152,20 @@ assign video_firq_ack = firq_ack_pulse;
 reg [7:0] vram_latch_addr_hi;
 reg [7:0] vram_latch_addr_lo;
 
-//always @(posedge clk_20m) begin
-//    if (latch_hi_cs & cpu_wr) vram_latch_addr_hi <= cpu_Dout;
-//    if (latch_lo_cs & cpu_wr) vram_latch_addr_lo <= cpu_Dout;
-//end
-
 always @(posedge clk_20m) begin
-    if (reset) begin
-        vram_latch_addr_hi <= 8'h00;
-        vram_latch_addr_lo <= 8'h00;
-    end else begin
-        if (latch_hi_cs & cpu_wr) vram_latch_addr_hi <= cpu_Dout;
-        if (latch_lo_cs & cpu_wr) vram_latch_addr_lo <= cpu_Dout;
-    end
+    if (latch_hi_cs & cpu_wr) vram_latch_addr_hi <= cpu_Dout;
+    if (latch_lo_cs & cpu_wr) vram_latch_addr_lo <= cpu_Dout;
 end
+
+// always @(posedge clk_20m) begin
+//     if (reset) begin
+//         vram_latch_addr_hi <= 8'h00;
+//         vram_latch_addr_lo <= 8'h00;
+//     end else begin
+//         if (latch_hi_cs & cpu_wr) vram_latch_addr_hi <= cpu_Dout;
+//         if (latch_lo_cs & cpu_wr) vram_latch_addr_lo <= cpu_Dout;
+//     end
+// end
 
 // ---------------------------------------------------------------------------
 // CRTC / display interconnects
@@ -328,8 +328,8 @@ wire [7:0] cpu_Din =
     palbank_cs     ? 8'h00                :  // Test
     palette_cs     ? pal_cpu_dout         :
     vram_latch_cs  ? vram_latch_dout      :
-    latch_hi_cs    ? vram_latch_addr_hi   :  // Test
-    latch_lo_cs    ? vram_latch_addr_lo   :  // Test
+//    latch_hi_cs    ? vram_latch_addr_hi   :  // Test
+//    latch_lo_cs    ? vram_latch_addr_lo   :  // Test
     scanline_cs    ? scanline_latch       :
     crtc_bus_cs    ? crtc_do_w            :
     rom_cs         ? rom_dout             :
