@@ -228,6 +228,10 @@ localparam CONF_STR = {
 	"-;",
 	"DIP;",
 	"-;",
+	"P2,Screen Centering;",
+	"P2O36,H Center,0,-1,-2,-3,-4,-5,-6,-7,+7,+6,+5,+4,+3,+2,+1;",
+	"P2O7A,V Center,0,-1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12;",
+	"-;",	
 	"R0,Reset;",
 	"J1,Draw Slow,Draw Fast,Coin,Start 1P,Start 2P,Pause;",
 	"jn,A,B,Select,Start,R,L;",
@@ -285,18 +289,17 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 
 ////////////////////   CLOCKS   ///////////////////
 wire CLK_40M;
+wire CLK_20M;
 wire locked;
 
 pll pll
 (
-	.refclk(CLK_50M),
-	.rst(0),
-	.outclk_0(CLK_40M),
-	.locked(locked)
+    .refclk(CLK_50M),
+    .rst(0),
+    .outclk_0(CLK_40M),
+    .outclk_1(CLK_20M),
+    .locked(locked)
 );
-
-reg CLK_20M = 0;
-always @(posedge CLK_40M) CLK_20M <= ~CLK_20M;
 
 assign CLK_VIDEO = CLK_40M;   // HDMI needs the 40 MHz reference
 
@@ -327,51 +330,56 @@ always @(posedge CLK_20M) begin
 	old_state <= ps2_key[10];
 	if(old_state != ps2_key[10]) begin
 		case(code)
-			'h16: btn_1p_start <= pressed; // 1
-			'h1E: btn_2p_start <= pressed; // 2
-			'h2E: btn_coin1    <= pressed; // 5
-			'h36: btn_coin2    <= pressed; // 6
-			'h4D: btn_pause    <= pressed; // P
-			'h46: btn_service  <= pressed; // 9
+			'h16: btn_1p_start <= pressed; // 1 = Player 1 Start
+			'h1E: btn_2p_start <= pressed; // 2 = Player 2 Start
+			'h2E: btn_coin1    <= pressed; // 5 = Coin Input 1
+			'h36: btn_coin2    <= pressed; // 6 = Coin Input 2
+			'h4D: btn_pause    <= pressed; // P = Pause
+			'h46: btn_service  <= pressed; // 9 = Test Advance
 			'h45: btn_service2 <= pressed; // 0 = Test Next Line
 			'h44: btn_service3 <= pressed; // O = Test Slew Up  
 			'h4B: btn_service4 <= pressed; // L = Test Slew Down
 
-			'h75: btn_up       <= pressed; // up
-			'h72: btn_down     <= pressed; // down
-			'h6B: btn_left     <= pressed; // left
-			'h74: btn_right    <= pressed; // right
-			'h14: btn_fire     <= pressed; // ctrl
-			'h12: btn_fire2    <= pressed; // left shift (draw fast / button2)
+			'h75: btn_up       <= pressed; // up         = Up
+			'h72: btn_down     <= pressed; // down       = Down
+			'h6B: btn_left     <= pressed; // left       = Left
+			'h74: btn_right    <= pressed; // right      = Right
+			'h14: btn_fire     <= pressed; // ctrl       = Draw Slow
+			'h12: btn_fire2    <= pressed; // left shift = Draw Fast
 		endcase 
 	end
 end
 
 //////////////////  Arcade Buttons/Interfaces   ///////////////////////////
 
-// directly from joystick_0
-wire m_up1     = btn_up        | joystick_0[3];
-wire m_down1   = btn_down      | joystick_0[2];
-wire m_left1   = btn_left      | joystick_0[1];
-wire m_right1  = btn_right     | joystick_0[0];
-wire m_btn1_p1 = btn_fire      | joystick_0[4];
-wire m_btn2_p1 = btn_fire2     | joystick_0[5];
-wire m_coin1   = btn_coin1     | joystick_0[6];
-wire m_start1  = btn_1p_start  | joystick_0[7];
-wire m_start2  = btn_2p_start  | joystick_0[8];
-wire m_pause   = btn_pause     | joystick_0[9];
-wire m_service = btn_service   | joystick_0[8];
+//Player 1
+wire m_up1      = btn_up        | joystick_0[3];
+wire m_down1    = btn_down      | joystick_0[2];
+wire m_left1    = btn_left      | joystick_0[1];
+wire m_right1   = btn_right     | joystick_0[0];
+wire m_btn1_p1  = btn_fire      | joystick_0[4];
+wire m_btn2_p1  = btn_fire2     | joystick_0[5];
+
+//Player 2
+wire m_up2      = btn_up		| joystick_1[3];
+wire m_down2    = btn_down      | joystick_1[2];
+wire m_left2    = btn_left      | joystick_1[1];
+wire m_right2   = btn_right     | joystick_1[0];
+wire m_btn1_p2  = btn_fire      | joystick_1[4];
+wire m_btn2_p2  = btn_fire2     | joystick_1[5];
+
+//Start/Coin
+wire m_start1   = btn_1p_start  | joystick_0[7];
+wire m_start2   = btn_2p_start  | joystick_0[8];
+wire m_coin1    = btn_coin1     | joystick_0[6];
+wire m_coin2    = btn_coin2     | joystick_1[6];
+wire m_pause    = btn_pause     | joystick_0[9];
+
+//Service Mode
+wire m_service  = btn_service   | joystick_0[8];
 wire m_service2 = btn_service2;
 wire m_service3 = btn_service3;
 wire m_service4 = btn_service4;
-
-wire m_up2     = joystick_1[3];
-wire m_down2   = joystick_1[2];
-wire m_left2   = joystick_1[1];
-wire m_right2  = joystick_1[0];
-wire m_btn1_p2 = joystick_1[4];
-wire m_btn2_p2 = joystick_1[5];
-wire m_coin2   = joystick_1[6];
 
 // PAUSE SYSTEM
 wire pause_cpu;
@@ -423,6 +431,7 @@ arcade_video #(256,24) arcade_video
 Qix QIX_inst
 (
 	.reset(reset),
+
 	.clk_20m(CLK_20M),
 
 	.coin({~m_coin2, ~m_coin1}),
