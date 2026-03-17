@@ -323,7 +323,7 @@ reg btn_service2 = 0;
 reg btn_service3 = 0;
 reg btn_service4 = 0;
 
-wire pressed = ps2_key[9];
+wire pressed = ~ps2_key[9];
 wire [7:0] code = ps2_key[7:0];
 always @(posedge CLK_20M) begin
 	reg old_state;
