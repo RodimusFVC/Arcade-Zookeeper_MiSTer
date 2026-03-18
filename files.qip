@@ -10,13 +10,11 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/qix_palette.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/qix_vram.sv
 
 set_global_assignment -name VERILOG_FILE rtl/pause.v
-set_global_assignment -name VERILOG_FILE rtl/hiscore.v
 
 set_global_assignment -name VERILOG_FILE rtl/cpu/MC6809/mc6809e.v
 set_global_assignment -name VERILOG_FILE rtl/cpu/MC6809/mc6809i.v
 
 set_global_assignment -name VHDL_FILE rtl/cpu/m6800.vhd
-
 set_global_assignment -name VHDL_FILE rtl/cpu/mc6845.vhd
 
 set_global_assignment -name VHDL_FILE rtl/ram_rom/dpram_dc.vhd
